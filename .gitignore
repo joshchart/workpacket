@@ -19,6 +19,9 @@ dist/
 # workpacket run outputs (ephemeral)
 workpacket_runs/
 
+# Working documents (plans, research, etc.)
+thoughts/
+
 # OS files
 .DS_Store
 Thumbs.db
