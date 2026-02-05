@@ -3,10 +3,14 @@
   "version": "0.1.0",
   "description": "Compiler-style pipeline that converts assignment materials into structured Execution Packets",
   "type": "module",
+  "bin": {
+    "workpacket": "./src/cli/main.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "build": "bun build ./src/index.ts --outdir ./dist --target bun"
+    "build": "bun build ./src/index.ts --outdir ./dist --target bun",
+    "cli": "bun run src/cli/main.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
