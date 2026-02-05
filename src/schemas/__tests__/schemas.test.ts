@@ -23,10 +23,30 @@ describe("SourceRefSchema", () => {
     expect(result.page).toBe(3);
   });
 
-  test("accepts minimal source ref (file_id only)", () => {
-    const result = SourceRefSchema.parse({ file_id: "readme.md" });
-    expect(result.file_id).toBe("readme.md");
-    expect(result.page).toBeUndefined();
+  test("rejects source ref with no locator", () => {
+    expect(() => SourceRefSchema.parse({ file_id: "readme.md" })).toThrow();
+  });
+
+  test("accepts source ref with only page", () => {
+    const result = SourceRefSchema.parse({ file_id: "spec.pdf", page: 1 });
+    expect(result.file_id).toBe("spec.pdf");
+    expect(result.section).toBeUndefined();
+  });
+
+  test("accepts source ref with only section", () => {
+    const result = SourceRefSchema.parse({
+      file_id: "spec.pdf",
+      section: "Intro",
+    });
+    expect(result.section).toBe("Intro");
+  });
+
+  test("accepts source ref with only line_start", () => {
+    const result = SourceRefSchema.parse({
+      file_id: "main.ts",
+      line_start: 0,
+    });
+    expect(result.line_start).toBe(0);
   });
 
   test("rejects empty file_id", () => {
@@ -103,7 +123,7 @@ describe("RequirementsOutputSchema", () => {
           id: "REQ-001",
           text: "Do the thing",
           type: "functional",
-          source_ref: { file_id: "spec.pdf" },
+          source_ref: { file_id: "spec.pdf", page: 1 },
         },
       ],
     });
