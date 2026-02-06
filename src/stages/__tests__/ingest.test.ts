@@ -11,6 +11,8 @@ import { ChunkSchema } from "../../schemas/chunk.js";
 import { runPipeline } from "../../orchestrator.js";
 import type { RunConfig } from "../../schemas/run-config.js";
 import type { Chunk } from "../../schemas/chunk.js";
+import type { FileTag } from "../../schemas/file-tag.js";
+import type { IngestOutput } from "../../schemas/ingest-output.js";
 
 let tempDir: string;
 
@@ -623,6 +625,138 @@ describe("schema validation", () => {
       expect(chunk.source_ref.file_id).toBeTruthy();
       expect(chunk.source_ref.line_start).toBeGreaterThanOrEqual(1);
     }
+  });
+});
+
+// ── File Tagging ────────────────────────────────────────────────
+
+describe("file tagging", () => {
+  test("spec files are tagged as spec", async () => {
+    const dir = makeTempDir();
+    mkdirSync(join(dir, "spec"), { recursive: true });
+    writeFileSync(join(dir, "spec", "assignment.md"), "# Spec");
+    const ctx = makeCtx([dir]);
+
+    const result = (await ingestStage.run(undefined, ctx)) as IngestOutput;
+    expect(result.file_tags["spec/assignment.md"]).toBe("spec");
+  });
+
+  test("requirement files are tagged as spec", async () => {
+    const dir = makeTempDir();
+    writeFileSync(join(dir, "requirements.md"), "# Requirements");
+    const ctx = makeCtx([dir]);
+
+    const result = (await ingestStage.run(undefined, ctx)) as IngestOutput;
+    expect(result.file_tags["requirements.md"]).toBe("spec");
+  });
+
+  test("assignment files are tagged as spec", async () => {
+    const dir = makeTempDir();
+    writeFileSync(join(dir, "assignment.txt"), "Assignment details");
+    const ctx = makeCtx([dir]);
+
+    const result = (await ingestStage.run(undefined, ctx)) as IngestOutput;
+    expect(result.file_tags["assignment.txt"]).toBe("spec");
+  });
+
+  test("slide files are tagged as slides", async () => {
+    const dir = makeTempDir();
+    mkdirSync(join(dir, "slides"), { recursive: true });
+    writeFileSync(join(dir, "slides", "lecture1.md"), "# Slide 1");
+    const ctx = makeCtx([dir]);
+
+    const result = (await ingestStage.run(undefined, ctx)) as IngestOutput;
+    expect(result.file_tags["slides/lecture1.md"]).toBe("slides");
+  });
+
+  test("lecture files are tagged as slides", async () => {
+    const dir = makeTempDir();
+    writeFileSync(join(dir, "lecture-notes.md"), "# Lecture");
+    const ctx = makeCtx([dir]);
+
+    const result = (await ingestStage.run(undefined, ctx)) as IngestOutput;
+    expect(result.file_tags["lecture-notes.md"]).toBe("slides");
+  });
+
+  test("presentation files are tagged as slides", async () => {
+    const dir = makeTempDir();
+    writeFileSync(join(dir, "presentation.md"), "# Presentation");
+    const ctx = makeCtx([dir]);
+
+    const result = (await ingestStage.run(undefined, ctx)) as IngestOutput;
+    expect(result.file_tags["presentation.md"]).toBe("slides");
+  });
+
+  test("starter/skeleton/template files are tagged as code", async () => {
+    const dir = makeTempDir();
+    mkdirSync(join(dir, "starter"), { recursive: true });
+    writeFileSync(join(dir, "starter", "main.md"), "# Starter code");
+    const ctx = makeCtx([dir]);
+
+    const result = (await ingestStage.run(undefined, ctx)) as IngestOutput;
+    expect(result.file_tags["starter/main.md"]).toBe("code");
+  });
+
+  test("readme files are tagged as notes", async () => {
+    const dir = makeTempDir();
+    writeFileSync(join(dir, "readme.md"), "# README");
+    const ctx = makeCtx([dir]);
+
+    const result = (await ingestStage.run(undefined, ctx)) as IngestOutput;
+    expect(result.file_tags["readme.md"]).toBe("notes");
+  });
+
+  test("note files are tagged as notes", async () => {
+    const dir = makeTempDir();
+    writeFileSync(join(dir, "notes.txt"), "Some notes here");
+    const ctx = makeCtx([dir]);
+
+    const result = (await ingestStage.run(undefined, ctx)) as IngestOutput;
+    expect(result.file_tags["notes.txt"]).toBe("notes");
+  });
+
+  test("unknown files are tagged as other", async () => {
+    const dir = makeTempDir();
+    writeFileSync(join(dir, "data.txt"), "Some data");
+    const ctx = makeCtx([dir]);
+
+    const result = (await ingestStage.run(undefined, ctx)) as IngestOutput;
+    expect(result.file_tags["data.txt"]).toBe("other");
+  });
+
+  test("file_tags map has entry for every unique file_id", async () => {
+    const dir = makeTempDir();
+    writeFileSync(join(dir, "spec.md"), "# Spec content");
+    writeFileSync(join(dir, "readme.md"), "# README");
+    writeFileSync(join(dir, "data.txt"), "Some data");
+    const ctx = makeCtx([dir]);
+
+    const result = (await ingestStage.run(undefined, ctx)) as IngestOutput;
+    const uniqueFileIds = [...new Set(result.chunks.map((c) => c.file_id))];
+
+    expect(Object.keys(result.file_tags).sort()).toEqual(uniqueFileIds.sort());
+  });
+
+  test("tagging is case-insensitive on path", async () => {
+    const dir = makeTempDir();
+    mkdirSync(join(dir, "Spec"), { recursive: true });
+    writeFileSync(join(dir, "Spec", "doc.md"), "# Spec doc");
+    const ctx = makeCtx([dir]);
+
+    const result = (await ingestStage.run(undefined, ctx)) as IngestOutput;
+    expect(result.file_tags["Spec/doc.md"]).toBe("spec");
+  });
+
+  test("output with file_tags conforms to IngestOutputSchema", async () => {
+    const dir = makeTempDir();
+    writeFileSync(join(dir, "spec.md"), "# Spec");
+    writeFileSync(join(dir, "readme.md"), "# README");
+    const ctx = makeCtx([dir]);
+
+    const result = await ingestStage.run(undefined, ctx);
+    const parsed = IngestOutputSchema.parse(result);
+
+    expect(Object.keys(parsed.file_tags).length).toBeGreaterThan(0);
   });
 });
 

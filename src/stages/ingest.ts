@@ -3,11 +3,33 @@ import { join, relative, extname, basename, resolve } from "node:path";
 import { createHash } from "node:crypto";
 import type { RunContext } from "../schemas/stage.js";
 import type { Chunk } from "../schemas/chunk.js";
+import type { FileTag } from "../schemas/file-tag.js";
 import type { IngestOutput } from "../schemas/ingest-output.js";
 import { IngestOutputSchema } from "../schemas/ingest-output.js";
 import type { PipelineStage } from "../orchestrator.js";
 
 const SUPPORTED_EXTENSIONS = new Set([".md", ".txt"]);
+
+const CODE_EXTENSIONS = new Set([
+  ".ts", ".js", ".py", ".c", ".h", ".java", ".rs", ".go",
+]);
+
+/**
+ * Infer a file tag from its path using simple heuristics.
+ * Matching is case-insensitive on the basename and parent directory name.
+ */
+function inferFileTag(filePath: string): FileTag {
+  const lower = filePath.toLowerCase();
+  const base = basename(lower);
+  const ext = extname(lower);
+
+  if (/(?:^|[/\\])(?:spec|requirement|assignment)/.test(lower)) return "spec";
+  if (/(?:^|[/\\])(?:slide|lecture|presentation)/.test(lower)) return "slides";
+  if (CODE_EXTENSIONS.has(ext)) return "code";
+  if (/(?:^|[/\\])(?:starter|skeleton|template)/.test(lower)) return "code";
+  if (/(?:^|[/\\])(?:note|readme)/.test(lower) || base.startsWith("readme")) return "notes";
+  return "other";
+}
 
 /**
  * Generate a deterministic chunk_id from file_id and chunk index.
@@ -282,8 +304,10 @@ async function run(_input: unknown, ctx: RunContext): Promise<IngestOutput> {
   }
 
   const allChunks: Chunk[] = [];
+  const fileTags: Record<string, FileTag> = {};
 
   for (const { filePath, fileId } of discovered) {
+    fileTags[fileId] = inferFileTag(filePath);
     const chunks = chunkFile(filePath, fileId);
     allChunks.push(...chunks);
   }
@@ -294,7 +318,7 @@ async function run(_input: unknown, ctx: RunContext): Promise<IngestOutput> {
     );
   }
 
-  return { chunks: allChunks };
+  return { chunks: allChunks, file_tags: fileTags };
 }
 
 export const ingestStage: PipelineStage = {
