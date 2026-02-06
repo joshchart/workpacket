@@ -6,6 +6,9 @@ import type { RunConfig } from "./schemas/run-config.js";
 import type { RunMetadata, StageName } from "./schemas/run-metadata.js";
 import type { RunContext } from "./schemas/stage.js";
 import { createRunLogger } from "./logger.js";
+import type { Chunk } from "./schemas/chunk.js";
+import type { FileTag } from "./schemas/file-tag.js";
+import { createStorage } from "./storage.js";
 
 /**
  * PipelineStage is the type-erased stage contract used by the orchestrator.
@@ -55,7 +58,7 @@ export async function runPipeline(
     status: "running",
   };
 
-  const ctx: RunContext = { config, run_id };
+  let ctx: RunContext = { config, run_id };
   const logger = createRunLogger(join(config.output_dir, "run.log"));
 
   writeRunMetadata(config.output_dir, metadata);
@@ -65,85 +68,110 @@ export async function runPipeline(
 
   let currentInput: unknown = initialInput;
 
-  for (const stage of stages) {
-    logger.log(`Stage '${stage.name}' started`);
+  try {
+    for (const stage of stages) {
+      logger.log(`Stage '${stage.name}' started`);
 
-    let attempts = 0;
-    let validatedOutput: unknown;
+      let attempts = 0;
+      let validatedOutput: unknown;
 
-    while (true) {
-      attempts++;
+      while (true) {
+        attempts++;
 
-      let output: unknown;
-      try {
-        output = await stage.run(currentInput, ctx);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : String(error);
-        logger.log(`Stage '${stage.name}' threw error: ${message}`);
-        metadata.status = "failed";
-        metadata.error = message;
-        writeRunMetadata(config.output_dir, metadata);
-        return metadata;
-      }
+        let output: unknown;
+        try {
+          output = await stage.run(currentInput, ctx);
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          logger.log(`Stage '${stage.name}' threw error: ${message}`);
+          metadata.status = "failed";
+          metadata.error = message;
+          writeRunMetadata(config.output_dir, metadata);
+          return metadata;
+        }
 
-      const validationResult = stage.outputSchema.safeParse(output);
+        const validationResult = stage.outputSchema.safeParse(output);
 
-      if (validationResult.success) {
-        validatedOutput = validationResult.data;
-        break;
-      }
+        if (validationResult.success) {
+          validatedOutput = validationResult.data;
+          break;
+        }
 
-      if (attempts > MAX_RETRIES) {
-        const errorMessage = validationResult.error.issues
-          .map((i) => `${i.path.join(".")}: ${i.message}`)
-          .join("; ");
+        if (attempts > MAX_RETRIES) {
+          const errorMessage = validationResult.error.issues
+            .map((i) => `${i.path.join(".")}: ${i.message}`)
+            .join("; ");
+          logger.log(
+            `Stage '${stage.name}' output validation failed after ${attempts} attempts`,
+          );
+          metadata.status = "failed";
+          metadata.error = errorMessage;
+          writeRunMetadata(config.output_dir, metadata);
+          return metadata;
+        }
+
         logger.log(
-          `Stage '${stage.name}' output validation failed after ${attempts} attempts`,
+          `Stage '${stage.name}' output validation failed (attempt ${attempts}/${MAX_RETRIES + 1}), retrying...`,
         );
-        metadata.status = "failed";
-        metadata.error = errorMessage;
-        writeRunMetadata(config.output_dir, metadata);
-        return metadata;
       }
 
-      logger.log(
-        `Stage '${stage.name}' output validation failed (attempt ${attempts}/${MAX_RETRIES + 1}), retrying...`,
+      // Loop only exits via break (success) or return (failure), so
+      // reaching here means validation passed.
+      let outputContent: string;
+      if (stage.outputFilename.endsWith(".json")) {
+        outputContent = JSON.stringify(validatedOutput, null, 2);
+      } else {
+        if (typeof validatedOutput !== "string") {
+          const message = `Stage '${stage.name}' output must be a string for non-JSON filename '${stage.outputFilename}', got ${typeof validatedOutput}`;
+          logger.log(message);
+          metadata.status = "failed";
+          metadata.error = message;
+          writeRunMetadata(config.output_dir, metadata);
+          return metadata;
+        }
+        outputContent = validatedOutput;
+      }
+      writeFileSync(
+        join(config.output_dir, stage.outputFilename),
+        outputContent,
       );
-    }
+      logger.log(
+        `Stage '${stage.name}' completed, output written to ${stage.outputFilename}`,
+      );
+      metadata.stages_completed.push(stage.name);
+      writeRunMetadata(config.output_dir, metadata);
+      currentInput = validatedOutput;
 
-    // Loop only exits via break (success) or return (failure), so
-    // reaching here means validation passed.
-    let outputContent: string;
-    if (stage.outputFilename.endsWith(".json")) {
-      outputContent = JSON.stringify(validatedOutput, null, 2);
-    } else {
-      if (typeof validatedOutput !== "string") {
-        const message = `Stage '${stage.name}' output must be a string for non-JSON filename '${stage.outputFilename}', got ${typeof validatedOutput}`;
-        logger.log(message);
-        metadata.status = "failed";
-        metadata.error = message;
-        writeRunMetadata(config.output_dir, metadata);
-        return metadata;
+      // After ingest completes, create storage DB and inject reader into context
+      if (stage.name === "ingest" && validatedOutput) {
+        const ingestOutput = validatedOutput as {
+          chunks?: Chunk[];
+          file_tags?: Record<string, FileTag>;
+        };
+        if (ingestOutput.chunks && ingestOutput.file_tags) {
+          const reader = createStorage(
+            config.output_dir,
+            ingestOutput.chunks,
+            new Map(Object.entries(ingestOutput.file_tags)),
+          );
+          ctx = { ...ctx, storage: reader };
+          logger.log(
+            `Storage created: ${ingestOutput.chunks.length} chunks indexed`,
+          );
+        }
       }
-      outputContent = validatedOutput;
     }
-    writeFileSync(
-      join(config.output_dir, stage.outputFilename),
-      outputContent,
-    );
-    logger.log(
-      `Stage '${stage.name}' completed, output written to ${stage.outputFilename}`,
-    );
-    metadata.stages_completed.push(stage.name);
+
+    metadata.status = "completed";
+    metadata.completed_at = new Date().toISOString();
     writeRunMetadata(config.output_dir, metadata);
-    currentInput = validatedOutput;
+    logger.log("Pipeline completed successfully");
+
+    return metadata;
+  } finally {
+    if (ctx.storage) {
+      ctx.storage.close();
+    }
   }
-
-  metadata.status = "completed";
-  metadata.completed_at = new Date().toISOString();
-  writeRunMetadata(config.output_dir, metadata);
-  logger.log("Pipeline completed successfully");
-
-  return metadata;
 }

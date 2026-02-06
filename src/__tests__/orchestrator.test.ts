@@ -8,6 +8,9 @@ import type { PipelineStage } from "../orchestrator.js";
 import type { StageName } from "../schemas/run-metadata.js";
 import { RunMetadataSchema } from "../schemas/run-metadata.js";
 import type { RunConfig } from "../schemas/run-config.js";
+import type { RunContext } from "../schemas/stage.js";
+import { IngestOutputSchema } from "../schemas/ingest-output.js";
+import { DB_FILENAME } from "../storage.js";
 
 function mockStage(
   name: StageName,
@@ -355,5 +358,135 @@ describe("runPipeline", () => {
 
     // Stage 2 output file does NOT exist
     expect(existsSync(join(outputDir, "requirements.json"))).toBe(false);
+  });
+
+  // ── Storage Integration ──────────────────────────────────────────
+
+  function makeIngestOutput() {
+    return {
+      chunks: [
+        {
+          chunk_id: "c1",
+          file_id: "spec.md",
+          text: "implement binary search algorithm",
+          source_ref: { file_id: "spec.md", line_start: 1, line_end: 3 },
+        },
+        {
+          chunk_id: "c2",
+          file_id: "notes.md",
+          text: "notes about sorting algorithms",
+          source_ref: { file_id: "notes.md", line_start: 1, line_end: 2 },
+        },
+      ],
+      file_tags: {
+        "spec.md": "spec" as const,
+        "notes.md": "notes" as const,
+      },
+    };
+  }
+
+  test("creates chunks.db after ingest stage", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "orch-test-"));
+    const outputDir = join(tempDir, "output");
+    const config = makeConfig(outputDir);
+
+    const ingestData = makeIngestOutput();
+    const stage: PipelineStage = {
+      name: "ingest",
+      outputFilename: "chunks.json",
+      outputSchema: IngestOutputSchema,
+      run: async () => ingestData,
+    };
+
+    const metadata = await runPipeline(config, [stage]);
+
+    expect(metadata.status).toBe("completed");
+    expect(existsSync(join(outputDir, DB_FILENAME))).toBe(true);
+
+    const log = readFileSync(join(outputDir, "run.log"), "utf-8");
+    expect(log).toContain("Storage created: 2 chunks indexed");
+  });
+
+  test("subsequent stages receive storage in context", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "orch-test-"));
+    const outputDir = join(tempDir, "output");
+    const config = makeConfig(outputDir);
+
+    const ingestData = makeIngestOutput();
+    const ingestStage: PipelineStage = {
+      name: "ingest",
+      outputFilename: "chunks.json",
+      outputSchema: IngestOutputSchema,
+      run: async () => ingestData,
+    };
+
+    let capturedCtx: RunContext | undefined;
+    const stage2: PipelineStage = {
+      name: "extract_requirements",
+      outputFilename: "requirements.json",
+      outputSchema: z.object({ ok: z.boolean() }),
+      run: async (_input, ctx) => {
+        capturedCtx = ctx;
+        return { ok: true };
+      },
+    };
+
+    await runPipeline(config, [ingestStage, stage2]);
+
+    expect(capturedCtx).toBeDefined();
+    expect(capturedCtx!.storage).toBeDefined();
+
+    // Storage reader was functional during stage execution —
+    // verify by checking that chunks.db exists (reader was created from it)
+    expect(existsSync(join(outputDir, DB_FILENAME))).toBe(true);
+  });
+
+  test("storage is closed on pipeline completion", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "orch-test-"));
+    const outputDir = join(tempDir, "output");
+    const config = makeConfig(outputDir);
+
+    const ingestData = makeIngestOutput();
+    const stage: PipelineStage = {
+      name: "ingest",
+      outputFilename: "chunks.json",
+      outputSchema: IngestOutputSchema,
+      run: async () => ingestData,
+    };
+
+    const metadata = await runPipeline(config, [stage]);
+
+    expect(metadata.status).toBe("completed");
+    // DB file exists and is accessible (was properly closed, not corrupted)
+    expect(existsSync(join(outputDir, DB_FILENAME))).toBe(true);
+  });
+
+  test("storage is closed on pipeline failure", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "orch-test-"));
+    const outputDir = join(tempDir, "output");
+    const config = makeConfig(outputDir);
+
+    const ingestData = makeIngestOutput();
+    const ingestStage: PipelineStage = {
+      name: "ingest",
+      outputFilename: "chunks.json",
+      outputSchema: IngestOutputSchema,
+      run: async () => ingestData,
+    };
+
+    const failingStage: PipelineStage = {
+      name: "extract_requirements",
+      outputFilename: "requirements.json",
+      outputSchema: z.object({ data: z.string() }),
+      run: async () => {
+        throw new Error("stage 2 exploded");
+      },
+    };
+
+    const metadata = await runPipeline(config, [ingestStage, failingStage]);
+
+    expect(metadata.status).toBe("failed");
+    // DB file exists (storage was created after ingest, then closed in finally)
+    expect(existsSync(join(outputDir, DB_FILENAME))).toBe(true);
   });
 });

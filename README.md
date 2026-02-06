@@ -87,7 +87,7 @@ Each run produces:
 
 ```
 workpacket_runs/<assignment_id>/
-  chunks.jsonl        # Parsed and indexed content
+  chunks.json        # Parsed and indexed content
   requirements.json   # Extracted requirements with citations
   concepts.json       # Required concepts mapped to requirements
   primer.md           # Just-enough concept explanations
