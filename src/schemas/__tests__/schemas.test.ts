@@ -41,12 +41,18 @@ describe("SourceRefSchema", () => {
     expect(result.section).toBe("Intro");
   });
 
-  test("accepts source ref with only line_start", () => {
+  test("accepts source ref with only line_start (1-based)", () => {
     const result = SourceRefSchema.parse({
       file_id: "main.ts",
-      line_start: 0,
+      line_start: 1,
     });
-    expect(result.line_start).toBe(0);
+    expect(result.line_start).toBe(1);
+  });
+
+  test("rejects line_start of 0 (must be 1-based)", () => {
+    expect(() =>
+      SourceRefSchema.parse({ file_id: "main.ts", line_start: 0 })
+    ).toThrow();
   });
 
   test("rejects empty file_id", () => {
