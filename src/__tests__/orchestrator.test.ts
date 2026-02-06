@@ -243,6 +243,48 @@ describe("runPipeline", () => {
     expect(parsed.run_id).toBe(metadata.run_id);
   });
 
+  test("non-JSON output filename writes raw string content", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "orch-test-"));
+    const outputDir = join(tempDir, "output");
+    const config = makeConfig(outputDir);
+
+    const markdownContent = "# Primer\n\nSome explanation here.";
+    const stage = mockStage(
+      "ingest",
+      "primer.md",
+      z.string().min(1),
+      () => markdownContent,
+    );
+
+    const metadata = await runPipeline(config, [stage]);
+
+    expect(metadata.status).toBe("completed");
+
+    // File should contain raw markdown, not JSON-stringified markdown
+    const written = readFileSync(join(outputDir, "primer.md"), "utf-8");
+    expect(written).toBe(markdownContent);
+    expect(written).not.toContain('"#');
+  });
+
+  test("non-JSON output filename with non-string output fails", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "orch-test-"));
+    const outputDir = join(tempDir, "output");
+    const config = makeConfig(outputDir);
+
+    const stage = mockStage(
+      "ingest",
+      "primer.md",
+      z.object({ data: z.string() }),
+      () => ({ data: "hello" }),
+    );
+
+    const metadata = await runPipeline(config, [stage]);
+
+    expect(metadata.status).toBe("failed");
+    expect(metadata.error).toContain("must be a string for non-JSON filename");
+    expect(metadata.stages_completed).toEqual([]);
+  });
+
   test("second stage receives validated (parsed) output", async () => {
     tempDir = mkdtempSync(join(tmpdir(), "orch-test-"));
     const outputDir = join(tempDir, "output");

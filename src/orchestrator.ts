@@ -114,9 +114,23 @@ export async function runPipeline(
 
     // Loop only exits via break (success) or return (failure), so
     // reaching here means validation passed.
+    let outputContent: string;
+    if (stage.outputFilename.endsWith(".json")) {
+      outputContent = JSON.stringify(validatedOutput, null, 2);
+    } else {
+      if (typeof validatedOutput !== "string") {
+        const message = `Stage '${stage.name}' output must be a string for non-JSON filename '${stage.outputFilename}', got ${typeof validatedOutput}`;
+        logger.log(message);
+        metadata.status = "failed";
+        metadata.error = message;
+        writeRunMetadata(config.output_dir, metadata);
+        return metadata;
+      }
+      outputContent = validatedOutput;
+    }
     writeFileSync(
       join(config.output_dir, stage.outputFilename),
-      JSON.stringify(validatedOutput, null, 2),
+      outputContent,
     );
     logger.log(
       `Stage '${stage.name}' completed, output written to ${stage.outputFilename}`,
