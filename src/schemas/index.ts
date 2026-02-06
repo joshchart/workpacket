@@ -1,5 +1,6 @@
 export { SourceRefSchema, type SourceRef } from "./source-ref.js";
 export { ChunkSchema, type Chunk } from "./chunk.js";
+export { IngestOutputSchema, type IngestOutput } from "./ingest-output.js";
 export {
   RequirementTypeSchema,
   type RequirementType,

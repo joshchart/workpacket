@@ -114,7 +114,7 @@ Inputs:
 - optional starter code text (selected files)
 
 Outputs:
-- `chunks.jsonl` (or equivalent)
+- `chunks.json`
 - SQLite rows for chunks and file metadata
 
 Chunk schema (conceptual):
@@ -221,7 +221,7 @@ Each run produces a folder:
 ```
 workpacket_runs/<assignment_id>/
   inputs/                 (optional copy or references)
-  chunks.jsonl
+  chunks.json
   requirements.json
   concepts.json
   primer.md
