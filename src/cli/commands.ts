@@ -1,6 +1,8 @@
-import { existsSync } from "node:fs";
-import { resolve, basename } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve, basename, join } from "node:path";
 import { RunConfigSchema } from "../schemas/run-config.js";
+import { runPipeline } from "../orchestrator.js";
+import { ingestStage } from "../stages/ingest.js";
 import type { BuildArgs, IngestArgs, PacketArgs } from "./parse-args.js";
 
 export async function runBuild(args: BuildArgs): Promise<void> {
@@ -33,13 +35,28 @@ export async function runBuild(args: BuildArgs): Promise<void> {
     process.exit(1);
   }
 
+  const config = configResult.data;
+
   console.log(`[workpacket] build`);
-  console.log(`  assignment_id:  ${configResult.data.assignment_id}`);
-  console.log(`  input_paths:    ${configResult.data.input_paths.join(", ")}`);
-  console.log(`  output_dir:     ${configResult.data.output_dir}`);
-  console.log(`  draft_enabled:  ${configResult.data.draft_enabled}`);
+  console.log(`  assignment_id:  ${config.assignment_id}`);
+  console.log(`  input_paths:    ${config.input_paths.join(", ")}`);
+  console.log(`  output_dir:     ${config.output_dir}`);
+  console.log(`  draft_enabled:  ${config.draft_enabled}`);
   console.log();
-  console.log("TODO: orchestrator not yet implemented");
+
+  // TODO: add later stages as they are implemented
+  const stages = [ingestStage];
+  const metadata = await runPipeline(config, stages);
+
+  if (metadata.status === "failed") {
+    console.error(`Build failed: ${metadata.error}`);
+    process.exit(1);
+  }
+
+  console.log(
+    `Done. Completed stages: ${metadata.stages_completed.join(", ")}`,
+  );
+  console.log(`  output_dir: ${config.output_dir}`);
 }
 
 export async function runIngest(args: IngestArgs): Promise<void> {
@@ -71,12 +88,27 @@ export async function runIngest(args: IngestArgs): Promise<void> {
     process.exit(1);
   }
 
+  const config = configResult.data;
+
   console.log(`[workpacket] ingest`);
-  console.log(`  assignment_id:  ${configResult.data.assignment_id}`);
-  console.log(`  input_paths:    ${configResult.data.input_paths.join(", ")}`);
-  console.log(`  output_dir:     ${configResult.data.output_dir}`);
+  console.log(`  assignment_id:  ${config.assignment_id}`);
+  console.log(`  input_paths:    ${config.input_paths.join(", ")}`);
+  console.log(`  output_dir:     ${config.output_dir}`);
   console.log();
-  console.log("TODO: orchestrator not yet implemented");
+
+  const metadata = await runPipeline(config, [ingestStage]);
+
+  if (metadata.status === "failed") {
+    console.error(`Ingest failed: ${metadata.error}`);
+    process.exit(1);
+  }
+
+  const chunksPath = join(config.output_dir, "chunks.json");
+  const chunks = JSON.parse(readFileSync(chunksPath, "utf-8")) as {
+    chunks: unknown[];
+  };
+
+  console.log(`Done. ${chunks.chunks.length} chunks written to ${chunksPath}`);
 }
 
 export async function runPacket(args: PacketArgs): Promise<void> {
