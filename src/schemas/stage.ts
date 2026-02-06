@@ -1,5 +1,6 @@
 import type { RunConfig } from "./run-config.js";
 import type { StageName } from "./run-metadata.js";
+import type { StorageReader } from "../storage.js";
 
 /**
  * RunContext is passed to every stage during pipeline execution.
@@ -9,6 +10,7 @@ import type { StageName } from "./run-metadata.js";
 export interface RunContext {
   readonly config: RunConfig;
   readonly run_id: string;
+  readonly storage?: StorageReader;
 }
 
 /**
