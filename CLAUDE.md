@@ -40,7 +40,7 @@ CLI → Orchestrator → Stages → Storage → Outputs
 ```
 
 **Pipeline stages** (each is a pure-ish function `Stage<I, O>`):
-1. **Ingest & Normalize** — parse files into chunks with stable source refs → `chunks.jsonl`
+1. **Ingest & Normalize** — parse files into chunks with stable source refs → `chunks.json`
 2. **Extract Requirements** — produce `requirements.json` with citations
 3. **Map Concepts** — identify required concepts, map to requirements → `concepts.json`
 4. **Explain Concepts** — generate `primer.md` with just-enough explanations
@@ -55,7 +55,7 @@ CLI → Orchestrator → Stages → Storage → Outputs
 **Output structure** per run:
 ```
 workpacket_runs/<assignment_id>/
-  chunks.jsonl
+  chunks.json
   requirements.json
   concepts.json
   primer.md

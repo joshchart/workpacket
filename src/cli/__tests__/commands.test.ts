@@ -1,4 +1,4 @@
-import { describe, test, expect, afterEach } from "bun:test";
+import { describe, test, expect, afterEach, mock } from "bun:test";
 import {
   mkdtempSync,
   mkdirSync,
@@ -109,15 +109,35 @@ describe("runBuild", () => {
     }
   });
 
-  test("runs ingest stage and produces output artifacts", async () => {
+  test("runs full pipeline (ingest + extract_requirements) and produces output artifacts", async () => {
+    // Mock the LLM so the extract_requirements stage works without an API key
+    const mockRequirements = JSON.stringify({
+      requirements: [
+        {
+          id: "REQ-001",
+          text: "Build the widget",
+          type: "functional",
+          source_ref: { file_id: "spec.md", section: "Requirements" },
+        },
+      ],
+    });
+    mock.module("../../llm.js", () => ({
+      callLLM: async () => ({
+        text: mockRequirements,
+        inputTokens: 100,
+        outputTokens: 50,
+      }),
+    }));
+
     tempDir = mkdtempSync(join(tmpdir(), "cmd-build-"));
     const inputDir = join(tempDir, "assignment");
     const outputDir = join(tempDir, "output");
     mkdirSync(inputDir);
 
+    // Use content that matches the FTS5 retrieval query keywords
     writeFileSync(
       join(inputDir, "spec.md"),
-      "# Task\n\nBuild the widget.\n",
+      "# Requirements\n\nYou must build the widget.\n\n# Constraints\n\nUse TypeScript.\n",
     );
 
     await runBuild({
@@ -130,12 +150,16 @@ describe("runBuild", () => {
     // chunks.json exists (ingest stage ran)
     expect(existsSync(join(outputDir, "chunks.json"))).toBe(true);
 
-    // run.json shows completed with ingest stage
+    // requirements.json exists (extract_requirements stage ran)
+    expect(existsSync(join(outputDir, "requirements.json"))).toBe(true);
+
+    // run.json shows completed with both stages
     const runJson = JSON.parse(
       readFileSync(join(outputDir, "run.json"), "utf-8"),
     );
     expect(runJson.status).toBe("completed");
     expect(runJson.stages_completed).toContain("ingest");
+    expect(runJson.stages_completed).toContain("extract_requirements");
 
     // run.log exists
     expect(existsSync(join(outputDir, "run.log"))).toBe(true);
