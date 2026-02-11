@@ -9,6 +9,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "bun test",
+    "test:integration": "RUN_LIVE_LLM_TESTS=1 bun test integration",
+    "test:all": "bun test && RUN_LIVE_LLM_TESTS=1 bun test integration",
     "build": "bun build ./src/index.ts --outdir ./dist --target bun",
     "cli": "bun run src/cli/main.ts"
   },
