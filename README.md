@@ -22,7 +22,7 @@ workpacket is **not** a conversational agent, planner, scheduler, or auto-submit
 
 ## Status
 
-**Pre-MVP.** Core Zod schemas for pipeline stages are implemented. The CLI, orchestrator, and pipeline stages are not yet built.
+**MVP complete.** All five pipeline stages, the CLI, orchestrator, storage layer, and test suite are implemented and working end-to-end. Draft mode (`--draft`) is designed but not yet implemented.
 
 ## Installation
 
@@ -37,9 +37,12 @@ cd workpacket
 bun install
 ```
 
-## Usage (Planned)
+## Usage
 
 ```bash
+# Authenticate (opens browser, required before first run)
+workpacket login
+
 # Full pipeline: ingest materials and generate packet
 workpacket build <assignment_dir>
 
@@ -48,28 +51,48 @@ workpacket ingest <assignment_dir>
 
 # Generate packet from previously ingested assignment
 workpacket packet <assignment_id>
-
-# Enable draft mode (generates code scaffolds where appropriate)
-workpacket build <assignment_dir> --draft
 ```
+
+You can also run via `bun`:
+
+```bash
+bun run cli build <assignment_dir>
+bun run cli ingest <assignment_dir>
+bun run cli packet <assignment_id>
+```
+
+### Options
+
+| Flag | Command | Description |
+|------|---------|-------------|
+| `--output <dir>` | build, ingest, packet | Custom output directory (default: `workpacket_runs/<assignment_id>`) |
+| `--draft` | build | Enable draft generation stage (not yet implemented) |
+| `--help, -h` | all | Show help |
 
 ## Architecture
 
 workpacket operates as a **compiler-style pipeline** with deterministic stages:
 
 ```
-Assignment Artifacts
-        ↓
-Ingest & Normalize (parse → chunk → index)
-        ↓
-Extract Requirements (JSON, schema-validated, cited)
-        ↓
-Map Concepts + Build Primer (JSON + Markdown)
-        ↓
-Generate Packet (Markdown, template + invariants)
-        ↓
-(Optional) Draft Mode
+Assignment Materials (.md, .txt)
+        |
+        v
+  Ingest & Normalize ──> chunks.json + SQLite FTS5 index
+        |
+        v
+  Extract Requirements ──> requirements.json
+        |
+        v
+  Map Concepts ──> concepts.json
+        |
+        v
+  Explain Concepts ──> primer.md
+        |
+        v
+  Generate Packet ──> packet.md
 ```
+
+Each stage is a pure-ish async function that reads from prior outputs, calls an LLM, validates the result with Zod, and writes to disk. The orchestrator coordinates execution, retries validation failures (up to 2 attempts), and persists all intermediates.
 
 ### Key Components
 
@@ -78,7 +101,7 @@ Generate Packet (Markdown, template + invariants)
 | **CLI** | Accept paths/config, call orchestrator, print summary |
 | **Orchestrator** | Run stages in order, validate outputs, handle retries |
 | **Stages** | Pure-ish functions with Zod-validated inputs/outputs |
-| **Retrieval** | SQLite FTS5 keyword search for relevant chunks |
+| **Retrieval** | SQLite FTS5 keyword search with file-tag bias |
 | **Storage** | SQLite metadata + artifacts on disk |
 
 ### Output Structure
@@ -87,13 +110,14 @@ Each run produces:
 
 ```
 workpacket_runs/<assignment_id>/
-  chunks.json        # Parsed and indexed content
-  requirements.json   # Extracted requirements with citations
-  concepts.json       # Required concepts mapped to requirements
-  primer.md           # Just-enough concept explanations
-  packet.md           # Final execution packet
-  run.json            # Run metadata for debugging
-  run.log             # Detailed execution log
+  chunks.db              # SQLite database with FTS5 index
+  chunks.json            # Parsed and indexed content
+  requirements.json      # Extracted requirements with citations
+  concepts.json          # Required concepts mapped to requirements
+  primer.md              # Just-enough concept explanations
+  packet.md              # Final execution packet
+  run.json               # Run metadata and stage completion status
+  run.log                # Detailed execution log
 ```
 
 ## Design Principles
@@ -110,7 +134,8 @@ workpacket_runs/<assignment_id>/
 - **Runtime:** Bun
 - **Language:** TypeScript (strict mode)
 - **Validation:** Zod schemas
-- **Storage:** SQLite with FTS5
+- **Storage:** SQLite with FTS5 (via `bun:sqlite`)
+- **LLM:** OpenAI Codex API with OAuth authentication
 
 ## Development
 
@@ -129,14 +154,35 @@ bun run build
 
 ```
 src/
-  schemas/           # Zod schemas for pipeline contracts
-    source-ref.ts    # Source reference (file + location)
-    chunk.ts         # Content chunk with source ref
-    requirement.ts   # Extracted requirement schema
-    concept.ts       # Concept mapping schema
-    run-config.ts    # Run configuration
-    run-metadata.ts  # Run status and metadata
-    stage.ts         # Stage type definitions
+  cli/
+    main.ts              # CLI entry point
+    commands.ts          # build, ingest, packet, login commands
+    parse-args.ts        # Argument parsing
+    help.ts              # Usage text
+  stages/
+    ingest.ts            # Stage 1: file discovery, chunking, tagging
+    extract-requirements.ts  # Stage 2: LLM-based requirement extraction
+    map-concepts.ts      # Stage 3: concept identification and mapping
+    explain-concepts.ts  # Stage 4: primer generation
+    generate-packet.ts   # Stage 5: final packet with invariant checks
+  schemas/
+    chunk.ts             # Content chunk schema
+    requirement.ts       # Requirement schema
+    concept.ts           # Concept mapping schema
+    primer-output.ts     # Primer output schema
+    packet-output.ts     # Packet output schema
+    source-ref.ts        # Source reference schema
+    file-tag.ts          # File tag enum
+    ingest-output.ts     # Ingest output schema
+    run-config.ts        # Run configuration
+    run-metadata.ts      # Run status and metadata
+    stage.ts             # Stage type definitions
+  orchestrator.ts        # Pipeline coordination and retry logic
+  storage.ts             # SQLite FTS5 storage layer
+  llm.ts                 # LLM client interface
+  oauth.ts               # OAuth login flow
+  auth.ts                # Token management
+  logger.ts              # Run logging
 ```
 
 ## Documentation

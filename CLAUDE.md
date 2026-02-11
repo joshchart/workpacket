@@ -10,7 +10,7 @@ This is **not** a conversational agent, planner, scheduler, or auto-submitter. I
 
 ## Status
 
-Pre-implementation. The repository contains design documents (PRD.md, ARCHITECTURE.md) and Claude command definitions. No source code exists yet.
+All five core pipeline stages are implemented and working end-to-end. The CLI (`build`, `ingest`, `packet`, `login`), orchestrator, SQLite FTS5 storage layer, and Zod schema contracts are complete. The test suite covers all stages, schemas, CLI, and core modules. Draft mode (`--draft`) is designed but not yet implemented.
 
 ## Operating Rules (Hard Constraints)
 
@@ -24,7 +24,7 @@ These rules are mandatory when making changes in this repository.
 - Do not modify `PRD.md` or `ARCHITECTURE.md` unless explicitly asked.
 - Persist intermediate artifacts to disk so results are inspectable.
 
-## Planned Technology Stack
+## Technology Stack
 
 - **Language**: TypeScript with strict configuration
 - **Runtime**: Bun
