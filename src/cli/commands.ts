@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { resolve, basename, join } from "node:path";
 import { RunConfigSchema } from "../schemas/run-config.js";
 import { runPipeline } from "../orchestrator.js";
@@ -48,6 +48,11 @@ export async function runBuild(args: BuildArgs): Promise<void> {
   console.log(`  output_dir:     ${config.output_dir}`);
   console.log(`  draft_enabled:  ${config.draft_enabled}`);
   console.log();
+
+  // Clean previous run artifacts so re-runs don't collide (e.g. SQLite tables)
+  if (existsSync(config.output_dir)) {
+    rmSync(config.output_dir, { recursive: true });
+  }
 
   const stages = [ingestStage, extractRequirementsStage, mapConceptsStage, explainConceptsStage, generatePacketStage];
   const metadata = await runPipeline(config, stages);
@@ -99,6 +104,11 @@ export async function runIngest(args: IngestArgs): Promise<void> {
   console.log(`  input_paths:    ${config.input_paths.join(", ")}`);
   console.log(`  output_dir:     ${config.output_dir}`);
   console.log();
+
+  // Clean previous run artifacts so re-runs don't collide (e.g. SQLite tables)
+  if (existsSync(config.output_dir)) {
+    rmSync(config.output_dir, { recursive: true });
+  }
 
   const metadata = await runPipeline(config, [ingestStage]);
 
