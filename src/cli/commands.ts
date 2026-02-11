@@ -6,6 +6,7 @@ import { ingestStage } from "../stages/ingest.js";
 import { extractRequirementsStage } from "../stages/extract-requirements.js";
 import { mapConceptsStage } from "../stages/map-concepts.js";
 import { explainConceptsStage } from "../stages/explain-concepts.js";
+import { generatePacketStage } from "../stages/generate-packet.js";
 import { login } from "../oauth.js";
 import type { BuildArgs, IngestArgs, PacketArgs } from "./parse-args.js";
 
@@ -48,8 +49,7 @@ export async function runBuild(args: BuildArgs): Promise<void> {
   console.log(`  draft_enabled:  ${config.draft_enabled}`);
   console.log();
 
-  // TODO: add later stages as they are implemented
-  const stages = [ingestStage, extractRequirementsStage, mapConceptsStage, explainConceptsStage];
+  const stages = [ingestStage, extractRequirementsStage, mapConceptsStage, explainConceptsStage, generatePacketStage];
   const metadata = await runPipeline(config, stages);
 
   if (metadata.status === "failed") {
@@ -135,11 +135,35 @@ export async function runPacket(args: PacketArgs): Promise<void> {
     process.exit(1);
   }
 
+  const config = configResult.data;
+
   console.log(`[workpacket] packet`);
-  console.log(`  assignment_id:  ${configResult.data.assignment_id}`);
-  console.log(`  output_dir:     ${configResult.data.output_dir}`);
+  console.log(`  assignment_id:  ${config.assignment_id}`);
+  console.log(`  output_dir:     ${config.output_dir}`);
   console.log();
-  console.log("TODO: orchestrator not yet implemented");
+
+  // Read the primer from disk (explain_concepts output)
+  const primerPath = join(config.output_dir, "primer.md");
+  if (!existsSync(primerPath)) {
+    console.error(
+      `Error: primer.md not found in ${config.output_dir}. ` +
+        "Run 'workpacket build' first to generate all prior stage outputs.",
+    );
+    process.exit(1);
+  }
+  const primer = readFileSync(primerPath, "utf-8");
+
+  const metadata = await runPipeline(config, [generatePacketStage], primer);
+
+  if (metadata.status === "failed") {
+    console.error(`Packet generation failed: ${metadata.error}`);
+    process.exit(1);
+  }
+
+  console.log(
+    `Done. Completed stages: ${metadata.stages_completed.join(", ")}`,
+  );
+  console.log(`  output_dir: ${config.output_dir}`);
 }
 
 export async function runLogin(): Promise<void> {

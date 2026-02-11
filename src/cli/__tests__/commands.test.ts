@@ -109,7 +109,7 @@ describe("runBuild", () => {
     }
   });
 
-  test("runs full pipeline (ingest + extract_requirements + map_concepts + explain_concepts) and produces output artifacts", async () => {
+  test("runs full pipeline and produces output artifacts", async () => {
     // Mock the LLM so LLM-powered stages work without an API key.
     // The mock returns different responses depending on which stage calls it:
     // call 1 = extract_requirements, call 2 = map_concepts, call 3 = explain_concepts.
@@ -137,13 +137,52 @@ describe("runBuild", () => {
     const mockPrimer = `## Widget Construction
 
 The widget is constructed by... [spec.md, Requirements]`;
+    const mockPacket = `## What You Are Building
+
+Build the widget as specified in the requirements. [spec.md, Requirements]
+
+## Acceptance Criteria
+
+- Widget is fully functional and passes all tests
+- REQ-001 is satisfied
+
+## Requirements Checklist
+
+| ID | Type | Requirement |
+|----|------|-------------|
+| REQ-001 | functional | Build the widget |
+
+## Required Concepts
+
+- Widget Construction: Understanding how to build the widget
+
+## System / Component Breakdown
+
+The system consists of a single widget module.
+
+## Execution Plan
+
+1. Set up the project structure
+2. Implement the widget
+
+## Common Pitfalls and Edge Cases
+
+- Forgetting to handle edge cases in widget initialization
+
+## Validation and Testing Plan
+
+- Unit test the widget module
+
+## Open Questions
+
+None identified.`;
     let llmCallCount = 0;
     mock.module("../../llm.js", () => ({
       callLLM: async () => {
         llmCallCount++;
-        const responses = [mockRequirements, mockConcepts, mockPrimer];
+        const responses = [mockRequirements, mockConcepts, mockPrimer, mockPacket];
         return {
-          text: responses[llmCallCount - 1] ?? mockPrimer,
+          text: responses[llmCallCount - 1] ?? mockPacket,
           inputTokens: 100,
           outputTokens: 50,
         };
@@ -182,7 +221,12 @@ The widget is constructed by... [spec.md, Requirements]`;
     const primer = readFileSync(join(outputDir, "primer.md"), "utf-8");
     expect(primer).toContain("## Widget Construction");
 
-    // run.json shows completed with all four stages
+    // packet.md exists (generate_packet stage ran)
+    expect(existsSync(join(outputDir, "packet.md"))).toBe(true);
+    const packet = readFileSync(join(outputDir, "packet.md"), "utf-8");
+    expect(packet).toContain("## What You Are Building");
+
+    // run.json shows completed with all five stages
     const runJson = JSON.parse(
       readFileSync(join(outputDir, "run.json"), "utf-8"),
     );
@@ -191,6 +235,7 @@ The widget is constructed by... [spec.md, Requirements]`;
     expect(runJson.stages_completed).toContain("extract_requirements");
     expect(runJson.stages_completed).toContain("map_concepts");
     expect(runJson.stages_completed).toContain("explain_concepts");
+    expect(runJson.stages_completed).toContain("generate_packet");
 
     // run.log exists
     expect(existsSync(join(outputDir, "run.log"))).toBe(true);
