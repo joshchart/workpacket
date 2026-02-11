@@ -2,7 +2,6 @@ export type BuildArgs = {
   command: "build";
   assignmentDir: string;
   outputDir?: string;
-  draft: boolean;
 };
 
 export type IngestArgs = {
@@ -70,7 +69,6 @@ function parseBuildArgs(args: string[]): ParseResult {
 
   const { outputDir, rest } = extractOutput(args);
 
-  const draft = rest.includes("--draft");
   const positionals = rest.filter((a) => !a.startsWith("-"));
 
   const assignmentDir = positionals[0];
@@ -86,7 +84,7 @@ function parseBuildArgs(args: string[]): ParseResult {
 
   return {
     ok: true,
-    args: { command: "build", assignmentDir, outputDir, draft },
+    args: { command: "build", assignmentDir, outputDir },
   };
 }
 

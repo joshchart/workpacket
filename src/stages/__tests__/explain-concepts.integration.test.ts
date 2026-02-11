@@ -71,7 +71,7 @@ describe("explain-concepts integration", () => {
         assignment_id: "bst-test",
         input_paths: [inputDir],
         output_dir: outputDir,
-        draft_enabled: false,
+
       };
 
       const metadata = await runPipeline(config, [

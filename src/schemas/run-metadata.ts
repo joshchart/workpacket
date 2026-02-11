@@ -6,7 +6,6 @@ export const StageNameSchema = z.enum([
   "map_concepts",
   "explain_concepts",
   "generate_packet",
-  "draft",
 ]);
 
 export type StageName = z.infer<typeof StageNameSchema>;

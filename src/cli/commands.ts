@@ -29,7 +29,6 @@ export async function runBuild(args: BuildArgs): Promise<void> {
     assignment_id: assignmentId,
     input_paths: [assignmentDir],
     output_dir: outputDir,
-    draft_enabled: args.draft,
   });
 
   if (!configResult.success) {
@@ -46,7 +45,6 @@ export async function runBuild(args: BuildArgs): Promise<void> {
   console.log(`  assignment_id:  ${config.assignment_id}`);
   console.log(`  input_paths:    ${config.input_paths.join(", ")}`);
   console.log(`  output_dir:     ${config.output_dir}`);
-  console.log(`  draft_enabled:  ${config.draft_enabled}`);
   console.log();
 
   // Clean previous run artifacts so re-runs don't collide (e.g. SQLite tables)

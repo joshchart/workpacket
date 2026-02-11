@@ -24,7 +24,6 @@ Arguments:
 
 Options:
   --output <dir>           Output directory (default: workpacket_runs/<assignment_id>)
-  --draft                  Enable draft generation stage
   --help, -h               Show this help message`;
 
 export const INGEST_USAGE = `workpacket ingest — run only the ingest stage

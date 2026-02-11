@@ -31,7 +31,7 @@ function makeConfig(outputDir: string): RunConfig {
     assignment_id: "test-assignment",
     input_paths: ["/tmp/test-input"],
     output_dir: outputDir,
-    draft_enabled: false,
+
   };
 }
 

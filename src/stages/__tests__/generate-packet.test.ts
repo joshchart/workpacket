@@ -129,7 +129,7 @@ function makeCtx(outputDir: string): RunContext {
       assignment_id: "test",
       input_paths: ["/tmp/test"],
       output_dir: outputDir,
-      draft_enabled: false,
+
     },
     run_id: "test-run",
   };

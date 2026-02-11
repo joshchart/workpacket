@@ -56,7 +56,7 @@ function makeCtx(storage?: StorageReader): RunContext {
       assignment_id: "test",
       input_paths: ["/tmp/test"],
       output_dir: "/tmp/test-output",
-      draft_enabled: false,
+
     },
     run_id: "test-run",
     storage,
@@ -665,7 +665,7 @@ describe("map-concepts integration", () => {
         assignment_id: "bst-test",
         input_paths: [inputDir],
         output_dir: outputDir,
-        draft_enabled: false,
+  
       };
 
       const metadata = await runPipeline(config, [

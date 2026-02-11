@@ -32,15 +32,6 @@ describe("parseArgs", () => {
       if (result.ok) {
         expect(result.args.command).toBe("build");
         expect(result.args).toHaveProperty("assignmentDir", "./hw3");
-        expect(result.args).toHaveProperty("draft", false);
-      }
-    });
-
-    test("build with --draft flag", () => {
-      const result = parseArgs(argv("build", "./hw3", "--draft"));
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        expect(result.args).toHaveProperty("draft", true);
       }
     });
 
@@ -71,17 +62,6 @@ describe("parseArgs", () => {
       if (result.ok) expect(result.args.command).toBe("help");
     });
 
-    test("build with --draft and --output combined", () => {
-      const result = parseArgs(
-        argv("build", "./hw3", "--draft", "--output", "./out"),
-      );
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        expect(result.args).toHaveProperty("draft", true);
-        expect(result.args).toHaveProperty("outputDir", "./out");
-        expect(result.args).toHaveProperty("assignmentDir", "./hw3");
-      }
-    });
   });
 
   describe("ingest command", () => {

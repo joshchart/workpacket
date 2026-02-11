@@ -22,7 +22,7 @@ workpacket is **not** a conversational agent, planner, scheduler, or auto-submit
 
 ## Status
 
-**MVP complete.** All five pipeline stages, the CLI, orchestrator, storage layer, and test suite are implemented and working end-to-end. Draft mode (`--draft`) is designed but not yet implemented.
+**MVP complete.** All five pipeline stages, the CLI, orchestrator, storage layer, and test suite are implemented and working end-to-end.
 
 ## Installation
 
@@ -66,7 +66,6 @@ bun run cli packet <assignment_id>
 | Flag | Command | Description |
 |------|---------|-------------|
 | `--output <dir>` | build, ingest, packet | Custom output directory (default: `workpacket_runs/<assignment_id>`) |
-| `--draft` | build | Enable draft generation stage (not yet implemented) |
 | `--help, -h` | all | Show help |
 
 ## Architecture

@@ -13,7 +13,7 @@ This system is **not** a planner, scheduler, notifier, or auto-submitter. It is 
 - **Pipeline over agent soup**: deterministic stages with explicit inputs/outputs.
 - **Spec-first contracts**: structured outputs validated at runtime (Zod).
 - **Auditability**: every requirement/concept must trace back to a source reference.
-- **Human-in-the-loop**: drafts are optional.
+- **Human-in-the-loop**: system produces reviewable artifacts, never submits work.
 - **Local-first**: runs on a single machine; outputs saved to disk.
 - **Minimal retrieval context**: chunk + retrieve relevant snippets; never dump entire PDFs.
 
@@ -50,8 +50,6 @@ Extract Requirements (JSON, schema-validated, cited)
 Map Concepts + Build Primer (JSON + Markdown, cited)
 ↓
 Generate Packet (Markdown, template + invariants)
-↓
-(Optional) Draft Mode
 
 ````
 
@@ -200,17 +198,6 @@ Output:
 * `packet.md`
 * validated via packet invariants (required sections present, tables filled)
 
-#### Optional Stage: Draft Mode
-
-Goal:
-
-* produce drafts only when explicitly enabled and allowed
-
-Rules:
-
-* disabled by default
-* allowed for “safe” assignment types (e.g., writing/SQL) or explicit user enablement
-* for systems projects, default to pseudocode + scaffolding only
 
 ---
 
@@ -279,13 +266,6 @@ When the spec is ambiguous or missing:
 
 * list **Open Questions**
 * do not invent requirements or interfaces
-
-### 8.3 Draft Gating
-
-Draft output requires:
-
-* explicit flag (e.g., `--draft`)
-* assignment type allowlist or user override
 
 ---
 

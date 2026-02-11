@@ -137,7 +137,6 @@ The packet **must** contain the following sections:
 Optional:
 - Pseudocode
 - Skeleton files
-- Draft answers
 
 ---
 
@@ -177,7 +176,6 @@ Execution Packet (Artifact)
 - Every requirement and factual claim must reference a source artifact
 
 ### Safety
-- Draft generation requires explicit enablement
 - The system must surface uncertainty instead of guessing
 
 ### Extensibility

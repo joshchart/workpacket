@@ -27,7 +27,7 @@ function makeCtx(inputPaths: string[]) {
       assignment_id: "test",
       input_paths: inputPaths,
       output_dir: join(tempDir, "output"),
-      draft_enabled: false,
+
     },
     run_id: "test-run",
   };
@@ -810,7 +810,7 @@ describe("error handling", () => {
       assignment_id: "test",
       input_paths: [join(dir, "nonexistent")],
       output_dir: outputDir,
-      draft_enabled: false,
+
     };
 
     const metadata = await runPipeline(config, [ingestStage]);
@@ -839,7 +839,7 @@ describe("orchestrator integration", () => {
       assignment_id: "test-assignment",
       input_paths: [dir],
       output_dir: outputDir,
-      draft_enabled: false,
+
     };
 
     const metadata = await runPipeline(config, [ingestStage]);
@@ -876,7 +876,7 @@ describe("orchestrator integration", () => {
       assignment_id: "test-assignment",
       input_paths: [inputDir],
       output_dir: outputDir,
-      draft_enabled: false,
+
     };
 
     const metadata = await runPipeline(config, [ingestStage]);

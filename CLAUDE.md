@@ -10,7 +10,7 @@ This is **not** a conversational agent, planner, scheduler, or auto-submitter. I
 
 ## Status
 
-All five core pipeline stages are implemented and working end-to-end. The CLI (`build`, `ingest`, `packet`, `login`), orchestrator, SQLite FTS5 storage layer, and Zod schema contracts are complete. The test suite covers all stages, schemas, CLI, and core modules. Draft mode (`--draft`) is designed but not yet implemented.
+All five core pipeline stages are implemented and working end-to-end. The CLI (`build`, `ingest`, `packet`, `login`), orchestrator, SQLite FTS5 storage layer, and Zod schema contracts are complete. The test suite covers all stages, schemas, CLI, and core modules.
 
 ## Operating Rules (Hard Constraints)
 
@@ -45,7 +45,6 @@ CLI → Orchestrator → Stages → Storage → Outputs
 3. **Map Concepts** — identify required concepts, map to requirements → `concepts.json`
 4. **Explain Concepts** — generate `primer.md` with just-enough explanations
 5. **Generate Packet** — produce final `packet.md` following a strict template (template may be invented initially; later it will be formalized in spec/packet_template.md)
-6. **Draft Mode** (optional) — only when explicitly enabled via `--draft`
 
 **Key components**:
 - **CLI**: accepts paths/config, calls orchestrator, prints summary (`workpacket build`, `workpacket ingest`, `workpacket packet`)

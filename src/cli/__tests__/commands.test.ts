@@ -204,7 +204,6 @@ None identified.`;
       command: "build",
       assignmentDir: inputDir,
       outputDir,
-      draft: false,
     });
 
     // chunks.json exists (ingest stage ran)

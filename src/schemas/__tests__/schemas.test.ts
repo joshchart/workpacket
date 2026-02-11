@@ -171,23 +171,13 @@ describe("ConceptsOutputSchema", () => {
 });
 
 describe("RunConfigSchema", () => {
-  test("accepts valid config with defaults", () => {
+  test("accepts valid config", () => {
     const result = RunConfigSchema.parse({
       assignment_id: "os-hw3",
       input_paths: ["./specs/hw3.pdf"],
       output_dir: "./workpacket_runs/os-hw3",
     });
-    expect(result.draft_enabled).toBe(false);
-  });
-
-  test("accepts explicit draft_enabled", () => {
-    const result = RunConfigSchema.parse({
-      assignment_id: "os-hw3",
-      input_paths: ["./specs/hw3.pdf"],
-      output_dir: "./workpacket_runs/os-hw3",
-      draft_enabled: true,
-    });
-    expect(result.draft_enabled).toBe(true);
+    expect(result.assignment_id).toBe("os-hw3");
   });
 
   test("rejects empty input_paths", () => {
