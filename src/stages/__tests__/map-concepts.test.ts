@@ -597,7 +597,7 @@ describe("map-concepts with mocked LLM", () => {
 });
 
 // ── Live Integration Tests ──────────────────────────────────────────
-// Gated on RUN_LIVE_LLM_TESTS=1 (not just ANTHROPIC_API_KEY) so that
+// Gated on RUN_LIVE_LLM_TESTS=1 so that
 // `bun test` stays fast, deterministic, and free by default.
 // Run with: RUN_LIVE_LLM_TESTS=1 bun test
 const runLive = process.env.RUN_LIVE_LLM_TESTS === "1";
