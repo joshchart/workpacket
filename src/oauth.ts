@@ -163,5 +163,14 @@ function extractAccountId(tokens: TokenResponse): string | undefined {
 
 const HTML_SUCCESS = `<!doctype html><html><body style="font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#111;color:#eee"><div style="text-align:center"><h1>Authenticated</h1><p>You can close this window.</p></div><script>setTimeout(()=>window.close(),2000)</script></body></html>`;
 
+export function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 const HTML_ERROR = (msg: string) =>
-  `<!doctype html><html><body style="font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#111;color:#eee"><div style="text-align:center"><h1 style="color:#f44">Authentication Failed</h1><p>${msg}</p></div></body></html>`;
+  `<!doctype html><html><body style="font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#111;color:#eee"><div style="text-align:center"><h1 style="color:#f44">Authentication Failed</h1><p>${escapeHtml(msg)}</p></div></body></html>`;

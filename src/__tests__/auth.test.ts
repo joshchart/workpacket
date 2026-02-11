@@ -1,5 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { isExpired, type StoredTokens } from "../auth.js";
+import { escapeHtml } from "../oauth.js";
 
 describe("isExpired", () => {
   test("returns true for expired tokens", () => {
@@ -38,6 +39,30 @@ describe("isExpired", () => {
       expires_at: Date.now() + 5 * 60 * 1000,
     };
     expect(isExpired(boundary)).toBe(false);
+  });
+});
+
+describe("escapeHtml", () => {
+  test("escapes script tags", () => {
+    expect(escapeHtml('<script>alert("xss")</script>')).toBe(
+      "&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;",
+    );
+  });
+
+  test("escapes ampersands", () => {
+    expect(escapeHtml("foo & bar")).toBe("foo &amp; bar");
+  });
+
+  test("escapes single quotes", () => {
+    expect(escapeHtml("it's")).toBe("it&#39;s");
+  });
+
+  test("returns plain text unchanged", () => {
+    expect(escapeHtml("Invalid state parameter")).toBe("Invalid state parameter");
+  });
+
+  test("handles empty string", () => {
+    expect(escapeHtml("")).toBe("");
   });
 });
 
