@@ -151,5 +151,6 @@ describe("callLLM integration", () => {
       expect(response.inputTokens).toBeGreaterThanOrEqual(0);
       expect(response.outputTokens).toBeGreaterThan(0);
     },
+    30_000, // API streaming can take 10s+
   );
 });

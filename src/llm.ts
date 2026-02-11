@@ -182,11 +182,17 @@ export async function callLLM(request: LLMRequest): Promise<LLMResponse> {
   const text = extractText(data);
   // Usage is inside the nested response object for SSE response.completed events
   const responseObj = (data.response as Record<string, unknown>) ?? data;
-  const usage = responseObj.usage as { prompt_tokens?: number; completion_tokens?: number } | undefined;
+  const usage = responseObj.usage as {
+    input_tokens?: number;
+    output_tokens?: number;
+    // Legacy field names (kept for compatibility)
+    prompt_tokens?: number;
+    completion_tokens?: number;
+  } | undefined;
 
   return {
     text,
-    inputTokens: usage?.prompt_tokens ?? 0,
-    outputTokens: usage?.completion_tokens ?? 0,
+    inputTokens: usage?.input_tokens ?? usage?.prompt_tokens ?? 0,
+    outputTokens: usage?.output_tokens ?? usage?.completion_tokens ?? 0,
   };
 }
