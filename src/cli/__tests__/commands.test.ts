@@ -109,8 +109,10 @@ describe("runBuild", () => {
     }
   });
 
-  test("runs full pipeline (ingest + extract_requirements) and produces output artifacts", async () => {
-    // Mock the LLM so the extract_requirements stage works without an API key
+  test("runs full pipeline (ingest + extract_requirements + map_concepts) and produces output artifacts", async () => {
+    // Mock the LLM so LLM-powered stages work without an API key.
+    // The mock returns different responses depending on which stage calls it:
+    // first call = extract_requirements, second call = map_concepts.
     const mockRequirements = JSON.stringify({
       requirements: [
         {
@@ -121,12 +123,27 @@ describe("runBuild", () => {
         },
       ],
     });
+    const mockConcepts = JSON.stringify({
+      concepts: [
+        {
+          id: "CON-001",
+          name: "Widget Construction",
+          description: "Understanding how to build the widget",
+          requirement_ids: ["REQ-001"],
+          source_refs: [{ file_id: "spec.md", section: "Requirements" }],
+        },
+      ],
+    });
+    let llmCallCount = 0;
     mock.module("../../llm.js", () => ({
-      callLLM: async () => ({
-        text: mockRequirements,
-        inputTokens: 100,
-        outputTokens: 50,
-      }),
+      callLLM: async () => {
+        llmCallCount++;
+        return {
+          text: llmCallCount === 1 ? mockRequirements : mockConcepts,
+          inputTokens: 100,
+          outputTokens: 50,
+        };
+      },
     }));
 
     tempDir = mkdtempSync(join(tmpdir(), "cmd-build-"));
@@ -153,13 +170,17 @@ describe("runBuild", () => {
     // requirements.json exists (extract_requirements stage ran)
     expect(existsSync(join(outputDir, "requirements.json"))).toBe(true);
 
-    // run.json shows completed with both stages
+    // concepts.json exists (map_concepts stage ran)
+    expect(existsSync(join(outputDir, "concepts.json"))).toBe(true);
+
+    // run.json shows completed with all three stages
     const runJson = JSON.parse(
       readFileSync(join(outputDir, "run.json"), "utf-8"),
     );
     expect(runJson.status).toBe("completed");
     expect(runJson.stages_completed).toContain("ingest");
     expect(runJson.stages_completed).toContain("extract_requirements");
+    expect(runJson.stages_completed).toContain("map_concepts");
 
     // run.log exists
     expect(existsSync(join(outputDir, "run.log"))).toBe(true);

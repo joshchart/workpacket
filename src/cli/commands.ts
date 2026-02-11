@@ -4,6 +4,7 @@ import { RunConfigSchema } from "../schemas/run-config.js";
 import { runPipeline } from "../orchestrator.js";
 import { ingestStage } from "../stages/ingest.js";
 import { extractRequirementsStage } from "../stages/extract-requirements.js";
+import { mapConceptsStage } from "../stages/map-concepts.js";
 import type { BuildArgs, IngestArgs, PacketArgs } from "./parse-args.js";
 
 export async function runBuild(args: BuildArgs): Promise<void> {
@@ -46,7 +47,7 @@ export async function runBuild(args: BuildArgs): Promise<void> {
   console.log();
 
   // TODO: add later stages as they are implemented
-  const stages = [ingestStage, extractRequirementsStage];
+  const stages = [ingestStage, extractRequirementsStage, mapConceptsStage];
   const metadata = await runPipeline(config, stages);
 
   if (metadata.status === "failed") {
