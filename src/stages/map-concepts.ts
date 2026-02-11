@@ -7,16 +7,9 @@ import {
 import { ConceptsOutputSchema } from "../schemas/concept.js";
 import { callLLM } from "../llm.js";
 import { parseJSON } from "./extract-requirements.js";
+import { buildDynamicQuery } from "../query-builder.js";
 import type { PipelineStage } from "../orchestrator.js";
 
-// Retrieval: use broad concept-related terms, biased toward slides/notes
-// per ARCHITECTURE.md:136 — "prioritize slides/notes for concept explanations"
-const RETRIEVAL_QUERY =
-  "concepts OR topics OR theory OR algorithm OR data structure OR design OR pattern OR technique OR method OR approach";
-// Broader fallback query when the primary query returns zero results.
-// Assignments that don't use typical CS keywords still have useful content.
-const FALLBACK_RETRIEVAL_QUERY =
-  "assignment OR project OR implement OR build OR create OR requirements OR objective";
 const RETRIEVAL_LIMIT = 30;
 
 const SYSTEM_PROMPT = `You are a precise concept mapping system. Your job is to identify the key concepts a student needs to understand in order to complete an assignment, and link each concept to specific requirements.
@@ -161,27 +154,32 @@ async function run(input: unknown, ctx: RunContext): Promise<unknown> {
   // Build the set of valid requirement IDs for post-LLM filtering
   const validReqIds = new Set(requirements.requirements.map((r) => r.id));
 
-  // Retrieve slides-biased chunks for concept identification.
-  // If the primary concept-keyword query returns nothing (e.g., non-CS
-  // assignments), fall back to a broader query before giving up.
-  let chunks = storage.retrieve({
-    query: RETRIEVAL_QUERY,
-    limit: RETRIEVAL_LIMIT,
-    bias: "slides",
-  });
+  // Build a dynamic query from the requirement texts this stage received.
+  // This naturally adapts to whatever vocabulary the assignment uses.
+  const reqTexts = requirements.requirements.map((r) => r.text);
+  const dynamicQuery = buildDynamicQuery(reqTexts);
 
-  if (chunks.length === 0) {
+  let chunks: Chunk[];
+  if (dynamicQuery) {
     chunks = storage.retrieve({
-      query: FALLBACK_RETRIEVAL_QUERY,
+      query: dynamicQuery,
       limit: RETRIEVAL_LIMIT,
       bias: "slides",
     });
+  } else {
+    chunks = [];
+  }
+
+  // Fallback: if no chunks matched (requirements too terse or unusual vocab),
+  // retrieve all slides-tagged chunks directly.
+  if (chunks.length === 0) {
+    chunks = storage.retrieveByTag("slides", RETRIEVAL_LIMIT);
   }
 
   if (chunks.length === 0) {
     throw new Error(
-      "No chunks retrieved for concept mapping (tried primary and fallback queries). " +
-        "The storage index may be empty or the queries may not match any content.",
+      "No chunks retrieved for concept mapping. " +
+        "The storage index may be empty or the assignment materials may not contain concept-related content.",
     );
   }
 

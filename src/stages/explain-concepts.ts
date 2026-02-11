@@ -7,13 +7,9 @@ import {
 import { PrimerOutputSchema } from "../schemas/primer-output.js";
 import { callLLM } from "../llm.js";
 import { formatChunks } from "./map-concepts.js";
+import { buildDynamicQuery } from "../query-builder.js";
 import type { PipelineStage } from "../orchestrator.js";
 
-// Retrieval: slides contain explanatory content best suited for concept explanations
-const RETRIEVAL_QUERY =
-  "concepts OR explanation OR theory OR algorithm OR data structure OR design OR pattern OR technique OR definition OR example";
-const FALLBACK_RETRIEVAL_QUERY =
-  "assignment OR project OR implement OR build OR overview OR introduction OR background";
 const RETRIEVAL_LIMIT = 30;
 
 const SYSTEM_PROMPT = `You are a precise concept explanation system. Your job is to generate "just enough" explanations for each concept a student needs to understand to complete an assignment.
@@ -121,25 +117,32 @@ async function run(input: unknown, ctx: RunContext): Promise<unknown> {
   }
   const concepts = conceptsParse.data;
 
-  // Retrieve slides-biased chunks for concept explanations
-  let chunks = storage.retrieve({
-    query: RETRIEVAL_QUERY,
-    limit: RETRIEVAL_LIMIT,
-    bias: "slides",
-  });
+  // Build a dynamic query from concept names and descriptions.
+  // This searches for content related to the actual concepts identified
+  // in the previous stage, rather than generic concept keywords.
+  const conceptTexts = concepts.concepts.flatMap((c) => [c.name, c.description]);
+  const dynamicQuery = buildDynamicQuery(conceptTexts);
 
-  if (chunks.length === 0) {
+  let chunks: Chunk[];
+  if (dynamicQuery) {
     chunks = storage.retrieve({
-      query: FALLBACK_RETRIEVAL_QUERY,
+      query: dynamicQuery,
       limit: RETRIEVAL_LIMIT,
       bias: "slides",
     });
+  } else {
+    chunks = [];
+  }
+
+  // Fallback: if no chunks matched, retrieve all slides-tagged chunks.
+  if (chunks.length === 0) {
+    chunks = storage.retrieveByTag("slides", RETRIEVAL_LIMIT);
   }
 
   if (chunks.length === 0) {
     throw new Error(
-      "No chunks retrieved for concept explanation (tried primary and fallback queries). " +
-        "The storage index may be empty or the queries may not match any content.",
+      "No chunks retrieved for concept explanation. " +
+        "The storage index may be empty or the assignment materials may not contain explanatory content.",
     );
   }
 

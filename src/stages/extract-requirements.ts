@@ -2,12 +2,9 @@ import type { RunContext } from "../schemas/stage.js";
 import type { Chunk } from "../schemas/chunk.js";
 import { RequirementsOutputSchema } from "../schemas/requirement.js";
 import { callLLM } from "../llm.js";
+import { buildDynamicQuery } from "../query-builder.js";
 import type { PipelineStage } from "../orchestrator.js";
 
-// FTS5 treats space-separated terms as implicit AND. Use explicit OR so
-// chunks matching *any* relevant term are returned rather than only those
-// containing every term (which would miss most real-world assignments).
-const RETRIEVAL_QUERY = "requirements OR constraints OR interface OR grading OR deliverables OR specification OR must OR shall";
 const RETRIEVAL_LIMIT = 30;
 
 const SYSTEM_PROMPT = `You are a precise requirement extraction system. Your job is to extract ALL requirements from assignment specification materials.
@@ -104,17 +101,37 @@ async function run(input: unknown, ctx: RunContext): Promise<unknown> {
     );
   }
 
-  // Retrieve spec-biased chunks for requirement extraction
-  const chunks = storage.retrieve({
-    query: RETRIEVAL_QUERY,
-    limit: RETRIEVAL_LIMIT,
-    bias: "spec",
-  });
+  // Step 1: Get all spec-tagged chunks directly — these are almost always
+  // relevant to requirements regardless of vocabulary.
+  const specChunks = storage.retrieveByTag("spec", RETRIEVAL_LIMIT);
+
+  // Step 2: Build a dynamic query from spec chunk content to find
+  // requirement-related content in non-spec files (slides, notes, etc.)
+  const dynamicQuery = buildDynamicQuery(specChunks.map((c) => c.text));
+
+  let supplementChunks: Chunk[] = [];
+  if (dynamicQuery) {
+    supplementChunks = storage.retrieve({
+      query: dynamicQuery,
+      limit: RETRIEVAL_LIMIT,
+      bias: "spec",
+    });
+  }
+
+  // Merge and deduplicate by chunk_id (spec chunks first for priority)
+  const seen = new Set<string>();
+  const chunks: Chunk[] = [];
+  for (const chunk of [...specChunks, ...supplementChunks]) {
+    if (!seen.has(chunk.chunk_id)) {
+      seen.add(chunk.chunk_id);
+      chunks.push(chunk);
+    }
+  }
 
   if (chunks.length === 0) {
     throw new Error(
       "No chunks retrieved for requirement extraction. " +
-      "The storage index may be empty or the query may not match any content."
+      "The storage index may be empty or no files were tagged as spec."
     );
   }
 

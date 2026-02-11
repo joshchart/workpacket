@@ -16,6 +16,9 @@ function makeStorage(chunks: Chunk[]): StorageReader {
     retrieve(_options: RetrievalOptions): Chunk[] {
       return chunks;
     },
+    retrieveByTag(_tag: string, _limit?: number): Chunk[] {
+      return chunks;
+    },
     close(): void {},
   };
 }
@@ -28,6 +31,9 @@ function makeFallbackStorage(chunks: Chunk[]): StorageReader {
       callCount++;
       return callCount === 1 ? [] : chunks;
     },
+    retrieveByTag(_tag: string, _limit?: number): Chunk[] {
+      return chunks;
+    },
     close(): void {},
   };
 }
@@ -36,6 +42,9 @@ function makeFallbackStorage(chunks: Chunk[]): StorageReader {
 function makeEmptyStorage(): StorageReader {
   return {
     retrieve(_options: RetrievalOptions): Chunk[] {
+      return [];
+    },
+    retrieveByTag(_tag: string, _limit?: number): Chunk[] {
       return [];
     },
     close(): void {},
@@ -247,7 +256,7 @@ describe("explain-concepts stage error paths", () => {
     ).rejects.toThrow("requires valid ConceptsOutput");
   });
 
-  test("throws when storage returns zero chunks (both primary + fallback)", async () => {
+  test("throws when storage returns zero chunks (both dynamic query + retrieveByTag)", async () => {
     const { explainConceptsStage } = await import("../explain-concepts.js");
     const ctx = makeCtx(makeEmptyStorage());
     const input = makeConcepts();
@@ -281,6 +290,9 @@ describe("explain-concepts retrieval fallback", () => {
         retrieveCallCount++;
         return [makeChunk("c1", "spec.md", "BST content")];
       },
+      retrieveByTag(_tag: string, _limit?: number): Chunk[] {
+        return [makeChunk("c1", "spec.md", "BST content")];
+      },
       close(): void {},
     };
 
@@ -291,7 +303,7 @@ describe("explain-concepts retrieval fallback", () => {
     expect(retrieveCallCount).toBe(1);
   });
 
-  test("falls back to broader query when primary returns zero results", async () => {
+  test("falls back to retrieveByTag when dynamic query returns zero results", async () => {
     const validPrimer =
       "## Binary Search Tree\n\nExplanation.\n\n## Memory Management\n\nExplanation.";
 
@@ -305,13 +317,14 @@ describe("explain-concepts retrieval fallback", () => {
 
     const mod = await import("../explain-concepts.js");
 
-    let retrieveCallCount = 0;
+    let retrieveByTagCalled = false;
     const storage: StorageReader = {
       retrieve(_options: RetrievalOptions): Chunk[] {
-        retrieveCallCount++;
-        return retrieveCallCount === 1
-          ? []
-          : [makeChunk("c1", "spec.md", "BST content")];
+        return []; // Dynamic query returns nothing
+      },
+      retrieveByTag(_tag: string, _limit?: number): Chunk[] {
+        retrieveByTagCalled = true;
+        return [makeChunk("c1", "spec.md", "BST content")];
       },
       close(): void {},
     };
@@ -319,8 +332,8 @@ describe("explain-concepts retrieval fallback", () => {
     const ctx = makeCtx(storage);
     await mod.explainConceptsStage.run(makeConcepts(), ctx);
 
-    // Should call retrieve twice (primary empty, fallback succeeds)
-    expect(retrieveCallCount).toBe(2);
+    // Should fall back to retrieveByTag("slides")
+    expect(retrieveByTagCalled).toBe(true);
   });
 });
 

@@ -254,6 +254,100 @@ describe("close", () => {
   });
 });
 
+// ── retrieveByTag ───────────────────────────────────────────────
+
+describe("retrieveByTag", () => {
+  test("returns chunks from files with matching tag", () => {
+    const dir = makeTempDir();
+    const chunks = [
+      makeChunk("c1", "spec.md", "requirement one"),
+      makeChunk("c2", "slides.md", "concept explanation", 10),
+    ];
+    const tags = makeFileTags([
+      ["spec.md", "spec"],
+      ["slides.md", "slides"],
+    ]);
+
+    const reader = createStorage(dir, chunks, tags);
+    const results = reader.retrieveByTag("spec");
+    reader.close();
+
+    expect(results.length).toBe(1);
+    expect(results[0]!.chunk_id).toBe("c1");
+    expect(results[0]!.file_id).toBe("spec.md");
+  });
+
+  test("returns empty array when no files have matching tag", () => {
+    const dir = makeTempDir();
+    const chunks = [makeChunk("c1", "notes.md", "some notes")];
+    const tags = makeFileTags([["notes.md", "notes"]]);
+
+    const reader = createStorage(dir, chunks, tags);
+    const results = reader.retrieveByTag("spec");
+    reader.close();
+
+    expect(results).toEqual([]);
+  });
+
+  test("respects limit parameter", () => {
+    const dir = makeTempDir();
+    const chunks = Array.from({ length: 10 }, (_, i) =>
+      makeChunk(`c${i}`, "spec.md", `requirement ${i}`, i * 10 + 1),
+    );
+    const tags = makeFileTags([["spec.md", "spec"]]);
+
+    const reader = createStorage(dir, chunks, tags);
+    const results = reader.retrieveByTag("spec", 3);
+    reader.close();
+
+    expect(results.length).toBe(3);
+  });
+
+  test("returns chunks from multiple files with same tag", () => {
+    const dir = makeTempDir();
+    const chunks = [
+      makeChunk("c1", "spec1.md", "first spec"),
+      makeChunk("c2", "spec2.md", "second spec", 10),
+      makeChunk("c3", "notes.md", "some notes", 20),
+    ];
+    const tags = makeFileTags([
+      ["spec1.md", "spec"],
+      ["spec2.md", "spec"],
+      ["notes.md", "notes"],
+    ]);
+
+    const reader = createStorage(dir, chunks, tags);
+    const results = reader.retrieveByTag("spec");
+    reader.close();
+
+    expect(results.length).toBe(2);
+    const ids = results.map((r) => r.chunk_id).sort();
+    expect(ids).toContain("c1");
+    expect(ids).toContain("c2");
+  });
+
+  test("does not return chunks from files with different tags", () => {
+    const dir = makeTempDir();
+    const chunks = [
+      makeChunk("c1", "spec.md", "spec content"),
+      makeChunk("c2", "slides.md", "slides content", 10),
+      makeChunk("c3", "notes.md", "notes content", 20),
+    ];
+    const tags = makeFileTags([
+      ["spec.md", "spec"],
+      ["slides.md", "slides"],
+      ["notes.md", "notes"],
+    ]);
+
+    const reader = createStorage(dir, chunks, tags);
+    const results = reader.retrieveByTag("slides");
+    reader.close();
+
+    expect(results.length).toBe(1);
+    expect(results[0]!.chunk_id).toBe("c2");
+  });
+});
+
 // ── round-trip ───────────────────────────────────────────────────
 
 describe("round-trip", () => {

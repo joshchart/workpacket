@@ -17,6 +17,8 @@ export interface RetrievalOptions {
 export interface StorageReader {
   /** Retrieve chunks matching a keyword query, ranked by relevance. */
   retrieve(options: RetrievalOptions): Chunk[];
+  /** Retrieve chunks from files with the given tag, ordered by insertion. */
+  retrieveByTag(tag: FileTag, limit?: number): Chunk[];
   /** Close the database connection. */
   close(): void;
 }
@@ -148,6 +150,27 @@ function makeReader(db: Database): StorageReader {
       const rows = options.bias
         ? db.query(sql).all(options.bias, BIAS_BOOST, options.query, limit)
         : db.query(sql).all(options.query, limit);
+
+      return (rows as any[]).map((row) => ({
+        chunk_id: row.chunk_id as string,
+        file_id: row.file_id as string,
+        text: row.text as string,
+        source_ref: JSON.parse(row.source_ref as string),
+      }));
+    },
+
+    retrieveByTag(tag: FileTag, limit?: number): Chunk[] {
+      const effectiveLimit = limit ?? DEFAULT_LIMIT;
+      const rows = db
+        .query(
+          `SELECT c.chunk_id, c.file_id, c.text, c.source_ref
+           FROM chunks c
+           JOIN files f ON c.file_id = f.file_id
+           WHERE f.tag = ?
+           ORDER BY c.rowid
+           LIMIT ?`,
+        )
+        .all(tag, effectiveLimit);
 
       return (rows as any[]).map((row) => ({
         chunk_id: row.chunk_id as string,
