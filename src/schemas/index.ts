@@ -25,4 +25,5 @@ export {
   type RunMetadata,
 } from "./run-metadata.js";
 export { FileTagSchema, type FileTag } from "./file-tag.js";
+export { PrimerOutputSchema, type PrimerOutput } from "./primer-output.js";
 export type { RunContext, Stage, StageDefinition } from "./stage.js";

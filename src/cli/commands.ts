@@ -5,6 +5,7 @@ import { runPipeline } from "../orchestrator.js";
 import { ingestStage } from "../stages/ingest.js";
 import { extractRequirementsStage } from "../stages/extract-requirements.js";
 import { mapConceptsStage } from "../stages/map-concepts.js";
+import { explainConceptsStage } from "../stages/explain-concepts.js";
 import { login } from "../oauth.js";
 import type { BuildArgs, IngestArgs, PacketArgs } from "./parse-args.js";
 
@@ -48,7 +49,7 @@ export async function runBuild(args: BuildArgs): Promise<void> {
   console.log();
 
   // TODO: add later stages as they are implemented
-  const stages = [ingestStage, extractRequirementsStage, mapConceptsStage];
+  const stages = [ingestStage, extractRequirementsStage, mapConceptsStage, explainConceptsStage];
   const metadata = await runPipeline(config, stages);
 
   if (metadata.status === "failed") {

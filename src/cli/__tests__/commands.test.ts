@@ -109,10 +109,10 @@ describe("runBuild", () => {
     }
   });
 
-  test("runs full pipeline (ingest + extract_requirements + map_concepts) and produces output artifacts", async () => {
+  test("runs full pipeline (ingest + extract_requirements + map_concepts + explain_concepts) and produces output artifacts", async () => {
     // Mock the LLM so LLM-powered stages work without an API key.
     // The mock returns different responses depending on which stage calls it:
-    // first call = extract_requirements, second call = map_concepts.
+    // call 1 = extract_requirements, call 2 = map_concepts, call 3 = explain_concepts.
     const mockRequirements = JSON.stringify({
       requirements: [
         {
@@ -134,12 +134,16 @@ describe("runBuild", () => {
         },
       ],
     });
+    const mockPrimer = `## Widget Construction
+
+The widget is constructed by... [spec.md, Requirements]`;
     let llmCallCount = 0;
     mock.module("../../llm.js", () => ({
       callLLM: async () => {
         llmCallCount++;
+        const responses = [mockRequirements, mockConcepts, mockPrimer];
         return {
-          text: llmCallCount === 1 ? mockRequirements : mockConcepts,
+          text: responses[llmCallCount - 1] ?? mockPrimer,
           inputTokens: 100,
           outputTokens: 50,
         };
@@ -173,7 +177,12 @@ describe("runBuild", () => {
     // concepts.json exists (map_concepts stage ran)
     expect(existsSync(join(outputDir, "concepts.json"))).toBe(true);
 
-    // run.json shows completed with all three stages
+    // primer.md exists (explain_concepts stage ran)
+    expect(existsSync(join(outputDir, "primer.md"))).toBe(true);
+    const primer = readFileSync(join(outputDir, "primer.md"), "utf-8");
+    expect(primer).toContain("## Widget Construction");
+
+    // run.json shows completed with all four stages
     const runJson = JSON.parse(
       readFileSync(join(outputDir, "run.json"), "utf-8"),
     );
@@ -181,6 +190,7 @@ describe("runBuild", () => {
     expect(runJson.stages_completed).toContain("ingest");
     expect(runJson.stages_completed).toContain("extract_requirements");
     expect(runJson.stages_completed).toContain("map_concepts");
+    expect(runJson.stages_completed).toContain("explain_concepts");
 
     // run.log exists
     expect(existsSync(join(outputDir, "run.log"))).toBe(true);
