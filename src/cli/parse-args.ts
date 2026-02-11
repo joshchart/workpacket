@@ -21,7 +21,11 @@ export type HelpArgs = {
   command: "help";
 };
 
-export type ParsedArgs = BuildArgs | IngestArgs | PacketArgs | HelpArgs;
+export type LoginArgs = {
+  command: "login";
+};
+
+export type ParsedArgs = BuildArgs | IngestArgs | PacketArgs | HelpArgs | LoginArgs;
 
 export type ParseError = {
   error: string;
@@ -153,6 +157,8 @@ export function parseArgs(argv: string[]): ParseResult {
       return parseIngestArgs(args.slice(1));
     case "packet":
       return parsePacketArgs(args.slice(1));
+    case "login":
+      return { ok: true, args: { command: "login" } };
     default:
       return {
         ok: false,

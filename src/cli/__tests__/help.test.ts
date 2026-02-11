@@ -11,6 +11,7 @@ describe("help text", () => {
     expect(MAIN_USAGE).toContain("build");
     expect(MAIN_USAGE).toContain("ingest");
     expect(MAIN_USAGE).toContain("packet");
+    expect(MAIN_USAGE).toContain("login");
   });
 
   test("build usage mentions --draft", () => {

@@ -5,6 +5,7 @@ import { runPipeline } from "../orchestrator.js";
 import { ingestStage } from "../stages/ingest.js";
 import { extractRequirementsStage } from "../stages/extract-requirements.js";
 import { mapConceptsStage } from "../stages/map-concepts.js";
+import { login } from "../oauth.js";
 import type { BuildArgs, IngestArgs, PacketArgs } from "./parse-args.js";
 
 export async function runBuild(args: BuildArgs): Promise<void> {
@@ -138,4 +139,19 @@ export async function runPacket(args: PacketArgs): Promise<void> {
   console.log(`  output_dir:     ${configResult.data.output_dir}`);
   console.log();
   console.log("TODO: orchestrator not yet implemented");
+}
+
+export async function runLogin(): Promise<void> {
+  console.log("[workpacket] login");
+  console.log("  Opening browser for ChatGPT authentication...");
+  console.log();
+
+  try {
+    await login();
+    console.log("Authentication successful! Tokens saved.");
+    console.log("You can now run 'workpacket build' to process assignments.");
+  } catch (err) {
+    console.error(`Authentication failed: ${err instanceof Error ? err.message : err}`);
+    process.exit(1);
+  }
 }

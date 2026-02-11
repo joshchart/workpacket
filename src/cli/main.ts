@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { parseArgs } from "./parse-args.js";
-import { runBuild, runIngest, runPacket } from "./commands.js";
+import { runBuild, runIngest, runPacket, runLogin } from "./commands.js";
 import { MAIN_USAGE } from "./help.js";
 
 async function main(): Promise<void> {
@@ -28,6 +28,9 @@ async function main(): Promise<void> {
       break;
     case "packet":
       await runPacket(args);
+      break;
+    case "login":
+      await runLogin();
       break;
   }
 }

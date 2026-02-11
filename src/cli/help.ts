@@ -7,6 +7,7 @@ Commands:
   build <assignment_dir>   Run the full pipeline (ingest → packet)
   ingest <assignment_dir>  Run only the ingest stage
   packet <assignment_id>   Generate packet from existing intermediates
+  login                    Authenticate with ChatGPT (opens browser)
 
 Options:
   --help, -h               Show this help message

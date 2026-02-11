@@ -132,6 +132,16 @@ describe("parseArgs", () => {
     });
   });
 
+  describe("login command", () => {
+    test("login → login args", () => {
+      const result = parseArgs(argv("login"));
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.args.command).toBe("login");
+      }
+    });
+  });
+
   describe("unknown command", () => {
     test("unknown command → error", () => {
       const result = parseArgs(argv("badcommand"));
